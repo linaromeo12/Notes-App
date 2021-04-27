@@ -1,5 +1,5 @@
 import { animate, style, transition, trigger, query, stagger } from '@angular/animations';
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { Note } from 'src/app/shared/note.model';
 import { NotesService } from 'src/app/shared/notes.service';
 
@@ -90,17 +90,27 @@ import { NotesService } from 'src/app/shared/notes.service';
 export class NotesListComponent implements OnInit {
   notes: Note[] = new Array<Note>(); 
   filteredNotes: Note[] = new Array<Note>(); 
+  @ViewChild('filterInput') filterInputElRef: ElementRef<HTMLInputElement>; 
   
   constructor(private notesService: NotesService) { }
 
   ngOnInit(): void {
     //retrieve all notes from noteservice 
     this.notes = this.notesService.getAll(); // return all notes
-    this.filteredNotes = this.notes; 
+    //this.filteredNotes = this.notesService.getAll(); 
+    this.filter(''); 
   }
-  deleteNote(id: number){
-    this.notesService.delete(id); 
+  deleteNote(note: Note){
+    let noteId = this.notesService.getId(note); 
+    this.notesService.delete(noteId);
+    this.filter(this.filterInputElRef.nativeElement.value); 
+
   }
+  generateNoteURL(note: Note){
+    let noteId = this.notesService.getId(note); 
+    return noteId; 
+  }
+
   filter(query: string){
     query = query.toLowerCase().trim(); 
 
@@ -121,6 +131,8 @@ export class NotesListComponent implements OnInit {
     let uniqueResults = this.removeDuplicates(allResults); 
     this.filteredNotes = uniqueResults; 
 
+    this.sortByRelevancy(allResults); 
+
   }
   removeDuplicates(arr: Array<any>){
     let uniqueResults: Set<any> = new Set<any>(); 
@@ -128,6 +140,7 @@ export class NotesListComponent implements OnInit {
     arr.forEach(e => uniqueResults.add(e)); 
 
     return Array.from(uniqueResults); 
+
 
   }
 
@@ -145,5 +158,33 @@ export class NotesListComponent implements OnInit {
 
     return relevantNotes; 
   }
+
+  sortByRelevancy(searchResults: Note[]){
+    //this method will calculate the relevancy of a note based on 
+    //the number of times it appears in search results 
+    let noteCountObj: Object = {}; //format - Key:value => noteid:number
+    searchResults.forEach(note => {
+      let noteId= this.notesService.getId(note); 
+
+      if (noteCountObj[noteId]){
+        noteCountObj[noteId] += 1; 
+      } else{
+        noteCountObj[noteId] = 1; 
+      }
+      
+    })
+    this.filteredNotes = this.filteredNotes.sort((a: Note, b: Note) => {
+      let aId = this.notesService.getId(a); 
+      let bId = this.notesService.getId(b); 
+
+      let aCount = noteCountObj[aId]; 
+      let bCount = noteCountObj[bId]; 
+
+      return bCount-aCount; 
+    })
+
+  }
+
+  
 
 }
